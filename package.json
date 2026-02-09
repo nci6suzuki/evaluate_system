@@ -12,5 +12,11 @@
     "@types/node": "^25.2.2",
     "@types/react": "^19.2.13",
     "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   }
 }
