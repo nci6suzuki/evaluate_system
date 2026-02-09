@@ -5,7 +5,10 @@ import Link from "next/link";
 type Role = "employee" | "manager" | "hr";
 
 export default function DashboardClient(props: any) {
-  const { me, activeCycle } = props as { me: { role: Role; name: string } };
+  const { me, activeCycle } = props as {
+    me: { role: Role; name: string };
+    activeCycle?: { name?: string; due_date?: string };
+  };
 
   return (
     <div>

@@ -29,8 +29,8 @@ export async function fetchDashboardPayload(accessToken: string) {
 
     const { data: cycles, error: e2 } = await supabase
       .from("evaluation_cycles")
-      .select("id,name,due_date,status,created_at")
-      .order("created_at", { ascending: false });
+      .select("id,name,due_date,status,start_date,end_date")
+      .order("start_date", { ascending: false, nullsFirst: false });
 
     if (e2) return { error: `cycles取得エラー: ${e2.message}`, data: null };
 

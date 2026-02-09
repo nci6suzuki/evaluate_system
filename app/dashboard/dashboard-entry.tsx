@@ -1,8 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { CSSProperties, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fetchDashboardPayload } from "./actions";
+
+type Role = "employee" | "manager" | "hr";
+
+const shellStyle: CSSProperties = {
+  minHeight: "100vh",
+  background: "linear-gradient(180deg, #f4f7fb 0%, #eef3ff 100%)",
+  padding: "28px 20px 40px",
+  color: "#13233a",
+  fontFamily:
+    'Inter, "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif',
+};
+
+const gridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: 14,
+};
+
+const cardStyle: CSSProperties = {
+  background: "#fff",
+  borderRadius: 14,
+  border: "1px solid #d9e2f2",
+  boxShadow: "0 8px 24px rgba(19, 35, 58, 0.06)",
+  padding: 18,
+};
 
 export default function DashboardEntry() {
   const [loading, setLoading] = useState(true);
@@ -29,14 +54,105 @@ export default function DashboardEntry() {
   }, []);
 
   if (loading) return <div style={{ padding: 24 }}>Loading...</div>;
-  if (err) return <div style={{ padding: 24, color: "red" }}>{err}</div>;
+  if (err) return <div style={{ padding: 24, color: "#c31f2f" }}>{err}</div>;
+  if (!payload) return <div style={{ padding: 24 }}>データがありません。</div>;
+
+  const me = payload?.me as { name: string; role: Role } | undefined;
+  const activeCycle = payload?.cycles?.[0];
+  const cycleCount = payload?.cycles?.length ?? 0;
+
+  const kpis = [
+    { label: "アクティブ評価期", value: activeCycle?.name ?? "未設定" },
+    {
+      label: "締切日",
+      value: activeCycle?.due_date ? String(activeCycle.due_date) : "未設定",
+    },
+    { label: "評価期数", value: `${cycleCount} 件` },
+    { label: "ロール", value: me?.role ?? "-" },
+  ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1>Dashboard（デバッグ表示）</h1>
-      <pre style={{ background: "#f6f6f6", padding: 12 }}>
-        {JSON.stringify(payload, null, 2)}
-      </pre>
-    </div>
+    <main style={shellStyle}>
+      <section style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <header
+          style={{
+            ...cardStyle,
+            background: "linear-gradient(110deg, #1e3a8a 0%, #2563eb 70%)",
+            color: "#fff",
+            marginBottom: 16,
+          }}
+        >
+          <p style={{ margin: 0, opacity: 0.9, fontSize: 13 }}>HR Performance Hub</p>
+          <h1 style={{ margin: "8px 0 6px", fontSize: 28 }}>人事評価ダッシュボード</h1>
+          <p style={{ margin: 0, opacity: 0.95 }}>
+            {me?.name ?? "-"} さん、お疲れさまです。評価サイクルと進捗を確認しましょう。
+          </p>
+        </header>
+
+        <section style={gridStyle}>
+          {kpis.map((kpi) => (
+            <article key={kpi.label} style={cardStyle}>
+              <p style={{ margin: 0, color: "#567", fontSize: 13 }}>{kpi.label}</p>
+              <p style={{ margin: "8px 0 0", fontSize: 22, fontWeight: 700 }}>{kpi.value}</p>
+            </article>
+          ))}
+        </section>
+
+        <section style={{ ...cardStyle, marginTop: 16 }}>
+          <h2 style={{ marginTop: 0, marginBottom: 12, fontSize: 18 }}>クイックアクション</h2>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            <QuickLink href="/evaluation/inbox" label="承認待ち一覧" />
+            <QuickLink href="/admin/evaluation/progress" label="評価進捗" />
+            <QuickLink href="/admin/evaluation/templates" label="テンプレート管理" />
+            <QuickLink href="/admin/evaluation/cycles" label="評価期設定" />
+          </div>
+        </section>
+
+        <section style={{ ...cardStyle, marginTop: 16 }}>
+          <h2 style={{ marginTop: 0, marginBottom: 12, fontSize: 18 }}>評価期のタイムライン</h2>
+          <div style={{ display: "grid", gap: 8 }}>
+            {(payload?.cycles ?? []).slice(0, 8).map((cycle: any) => (
+              <div
+                key={cycle.id}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #e2e8f5",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  background: "#fbfdff",
+                }}
+              >
+                <div>
+                  <b>{cycle.name}</b>
+                  <span style={{ color: "#64748b", marginLeft: 8 }}>status: {cycle.status}</span>
+                </div>
+                <span style={{ color: "#334155" }}>締切: {cycle.due_date ?? "未設定"}</span>
+              </div>
+            ))}
+            {!payload?.cycles?.length && <p style={{ margin: 0 }}>評価期がまだ作成されていません。</p>}
+          </div>
+        </section>
+      </section>
+    </main>
+  );
+}
+
+function QuickLink({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      style={{
+        textDecoration: "none",
+        padding: "10px 14px",
+        borderRadius: 999,
+        border: "1px solid #c9d6ed",
+        background: "#f7faff",
+        color: "#1d4ed8",
+        fontWeight: 600,
+      }}
+    >
+      {label}
+    </a>
   );
 }
