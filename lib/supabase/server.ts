@@ -3,18 +3,32 @@ import { createServerClient } from "@supabase/ssr";
 
 export function createSupabaseServer() {
   const cookieStore = cookies();
+
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll();
+        // ✅ getAllが無い環境対策：getで必要なcookieだけ取る
+        get(name: string) {
+          return cookieStore.get(name)?.value;
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
+
+        // ✅ setAllが無い環境対策：setを1件ずつ実行
+        set(name: string, value: string, options: any) {
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch {
+            // Server Component から set できないケースがあるので握りつぶす
+            // （middlewareやroute handlerで実施する構成ならここは問題になりません）
+          }
+        },
+
+        // ✅ 互換のためのダミー（ライブラリが呼ぶ場合に備える）
+        remove(name: string, options: any) {
+          try {
+            cookieStore.set({ name, value: "", ...options, maxAge: 0 });
+          } catch {}
         },
       },
     }
