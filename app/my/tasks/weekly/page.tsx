@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getMyEmployeeProfile, requireRole } from "@/lib/auth/roles";
 import WeeklyTasksClient from "./tasks-weekly-client";
 
 export default async function WeeklyTasksPage() {
   const me = await getMyEmployeeProfile();
-  if (!me) redirect("/login");
-  if (!requireRole(me, ["employee"])) redirect("/dashboard");
+  if (!requireRole(me, ["hr"])) {
+    return <main style={{ padding: 24 }}>このページを表示する権限がありません。</main>;
+  }
 
   const supabase = createSupabaseServer();
 

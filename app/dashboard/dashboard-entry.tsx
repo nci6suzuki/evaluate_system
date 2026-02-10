@@ -33,7 +33,13 @@ const cardStyle: CSSProperties = {
 export default function DashboardEntry() {
   const [loading, setLoading] = useState(true);
   const [payload, setPayload] = useState<any>(null);
+  const [sessionUser, setSessionUser] = useState<{
+    id: string;
+    email?: string;
+    lastSignInAt?: string;
+  } | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [logoutLoading, setLogoutLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -45,6 +51,12 @@ export default function DashboardEntry() {
         location.href = "/login";
         return;
       }
+
+      setSessionUser({
+        id: data.session.user.id,
+        email: data.session.user.email,
+        lastSignInAt: data.session.user.last_sign_in_at,
+      });
 
       const res = await fetchDashboardPayload(token);
       if (res.error) setErr(res.error);
@@ -75,7 +87,13 @@ export default function DashboardEntry() {
   const quickLinks = getQuickLinksByRole(me?.role);
 
   const sideLinks = getNavItemsByRole(me?.role);
-  const quickActions = getQuickActionsByRole(me?.role);
+
+  async function signOut() {
+    setLogoutLoading(true);
+    const supabase = supabaseBrowser();
+    await supabase.auth.signOut();
+    location.href = "/login";
+  }
 
   return (
     <main style={shellStyle}>
@@ -89,7 +107,17 @@ export default function DashboardEntry() {
           alignItems: "start",
         }}
       >
-        <aside style={{ ...cardStyle, position: "sticky", top: 16 }}>
+        <aside
+          style={{
+            ...cardStyle,
+            position: "sticky",
+            top: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            minHeight: "calc(100vh - 72px)",
+          }}
+        >
           <h2 style={{ marginTop: 0, marginBottom: 10, fontSize: 17 }}>メニュー</h2>
           <nav style={{ display: "grid", gap: 8 }}>
             {sideLinks.map((item) => (
@@ -110,6 +138,51 @@ export default function DashboardEntry() {
               </Link>
             ))}
           </nav>
+
+          <section
+            style={{
+              marginTop: "auto",
+              border: "1px solid #d6e1f2",
+              borderRadius: 10,
+              padding: 12,
+              background: "#f8fbff",
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: 15 }}>ログイン中ユーザー</h3>
+            <p style={{ margin: "8px 0 0", color: "#334155", fontSize: 13 }}>
+              メール: <b>{sessionUser?.email ?? "-"}</b>
+            </p>
+            <p
+              style={{
+                margin: "4px 0 0",
+                color: "#64748b",
+                fontSize: 11,
+                wordBreak: "break-all",
+              }}
+            >
+              user id: {sessionUser?.id ?? "-"}
+              {sessionUser?.lastSignInAt
+                ? ` / 最終ログイン: ${new Date(sessionUser.lastSignInAt).toLocaleString("ja-JP")}`
+                : ""}
+            </p>
+            <button
+              onClick={signOut}
+              disabled={logoutLoading}
+              style={{
+                border: "1px solid #ef4444",
+                color: "#b91c1c",
+                background: "#fff5f5",
+                borderRadius: 10,
+                padding: "8px 12px",
+                fontWeight: 700,
+                cursor: logoutLoading ? "not-allowed" : "pointer",
+                marginTop: 10,
+                width: "100%",
+              }}
+            >
+              {logoutLoading ? "ログアウト中..." : "ログアウト"}
+            </button>
+          </section>
         </aside>
 
         <div>
