@@ -8,7 +8,7 @@ export default async function MyEvaluationPage() {
     return <main style={{ padding: 24 }}>このページを表示する権限がありません。</main>;
   }
 
-  const supabase = createSupabaseServer();
+  const supabase = await createSupabaseServer();
 
   const { data: sheets } = await supabase
     .from("evaluation_sheets")

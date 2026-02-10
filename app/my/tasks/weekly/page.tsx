@@ -9,7 +9,7 @@ export default async function WeeklyTasksPage() {
     return <main style={{ padding: 24 }}>このページを表示する権限がありません。</main>;
   }
 
-  const supabase = createSupabaseServer();
+  const supabase = await createSupabaseServer();
 
   const { data: tasks } = await supabase.from("tasks").select("id,name").order("name");
 
