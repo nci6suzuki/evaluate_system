@@ -72,6 +72,8 @@ export default function DashboardEntry() {
     { label: "ロール", value: me?.role ?? "-" },
   ];
 
+  const quickLinks = getQuickLinksByRole(me?.role);
+
   const sideLinks = getNavItemsByRole(me?.role);
   const quickActions = getQuickActionsByRole(me?.role);
 
@@ -239,4 +241,27 @@ function getQuickActionsByRole(role?: Role) {
     default:
       return [{ href: "/dashboard", label: "ダッシュボード" }];
   }
+}
+
+function getQuickLinksByRole(role: Role | undefined) {
+  const commonLinks = [
+    { href: "/my/evaluation", label: "自分の評価" },
+    { href: "/my/tasks/weekly", label: "週次実績入力" },
+  ];
+
+  if (role === "manager") {
+    return [...commonLinks, { href: "/evaluation/inbox", label: "承認待ち一覧" }];
+  }
+
+  if (role === "hr") {
+    return [
+      ...commonLinks,
+      { href: "/evaluation/inbox", label: "承認待ち一覧" },
+      { href: "/admin/evaluation/progress", label: "評価進捗" },
+      { href: "/admin/evaluation/templates", label: "テンプレート管理" },
+      { href: "/admin/evaluation/cycles", label: "評価期設定" },
+    ];
+  }
+
+  return commonLinks;
 }
