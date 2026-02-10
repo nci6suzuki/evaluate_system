@@ -9,26 +9,17 @@ export async function createSupabaseServer() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        // ✅ getAllが無い環境対策：getで必要なcookieだけ取る
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+        getAll() {
+          return cookieStore.getAll();
         },
-
-        // ✅ setAllが無い環境対策：setを1件ずつ実行
-        set(name: string, value: string, options: any) {
-          try {
-            cookieStore.set({ name, value, ...options });
-          } catch {
-            // Server Component から set できないケースがあるので握りつぶす
-            // （middlewareやroute handlerで実施する構成ならここは問題になりません）
-          }
-        },
-
-        // ✅ 互換のためのダミー（ライブラリが呼ぶ場合に備える）
-        remove(name: string, options: any) {
-          try {
-            cookieStore.set({ name, value: "", ...options, maxAge: 0 });
-          } catch {}
+        setAll(cookiesToSet) {
+          for (const { name, value, options } of cookiesToSet) {
+            try {
+              cookieStore.set(name, value, options);
+            } catch {
+              // Server Componentではcookieの書き込みが失敗する場合がある
+            }
+            }
         },
       },
     }

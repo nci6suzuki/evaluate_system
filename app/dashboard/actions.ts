@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@supabase/supabase-js";
+import { normalizeRole } from "@/lib/auth/roles";
 
 function createSupabaseServerWithToken(accessToken: string) {
   return createClient(
@@ -27,6 +28,9 @@ export async function fetchDashboardPayload(accessToken: string) {
 
     if (e1) return { error: `employees取得エラー: ${e1.message}`, data: null };
 
+    const normalizedRole = normalizeRole(me?.role);
+    if (!normalizedRole) return { error: "ロール情報が不正です", data: null };
+
     const { data: cycles, error: e2 } = await supabase
       .from("evaluation_cycles")
       .select("id,name,due_date,status,start_date,end_date")
@@ -34,7 +38,7 @@ export async function fetchDashboardPayload(accessToken: string) {
 
     if (e2) return { error: `cycles取得エラー: ${e2.message}`, data: null };
 
-    return { error: null, data: { me, cycles } };
+    return { error: null, data: { me: { ...me, role: normalizedRole }, cycles } };
   } catch (e: any) {
     return { error: e?.message ?? "unknown error", data: null };
   }
