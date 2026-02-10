@@ -1,10 +1,11 @@
-import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getMyEmployeeProfile, requireRole } from "@/lib/auth/roles";
 
 export default async function InboxPage() {
   const me = await getMyEmployeeProfile();
-  if (!requireRole(me, ["manager", "hr"])) redirect("/dashboard");
+  if (!requireRole(me, ["manager", "hr"])) {
+    return <main style={{ padding: 24 }}>このページを表示する権限がありません。</main>;
+  }
 
   const supabase = await createSupabaseServer();
 

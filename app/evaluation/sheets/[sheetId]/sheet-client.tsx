@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-type Me = { id: string; name: string; role: "employee" | "manager" | "hr" };
+type Me = { id: string; name: string; role: "employee" | "manager" | "hr" | "admin" };
 type Sheet = {
   id: string;
   status: "draft" | "submitted" | "manager_review" | "final_review" | "returned" | "finalized";
@@ -119,9 +119,9 @@ export default function SheetClient({
   }
 
   const canSubmit = me.role === "employee" && (sheet.status === "draft" || sheet.status === "returned");
-  const canManagerApprove = me.role === "manager" && (sheet.status === "submitted" || sheet.status === "manager_review");
-  const canManagerReturn = me.role === "manager" && (sheet.status === "submitted" || sheet.status === "manager_review");
-  const canFinalize = me.role === "hr" && sheet.status === "final_review";
+  const canManagerApprove = (me.role === "manager" || me.role === "admin") && (sheet.status === "submitted" || sheet.status === "manager_review");
+  const canManagerReturn = (me.role === "manager" || me.role === "admin") && (sheet.status === "submitted" || sheet.status === "manager_review");
+  const canFinalize = (me.role === "hr" || me.role === "admin") && sheet.status === "final_review";
 
   return (
     <div>
@@ -216,7 +216,7 @@ export default function SheetClient({
             </div>
           )}
 
-          {me.role === "hr" && (
+          {(me.role === "hr" || me.role === "admin") && (
             <div style={{ marginTop: 16 }}>
               <b>最終評価（人事）</b>
               <div style={{ display: "flex", gap: 8, marginTop: 6 }}>

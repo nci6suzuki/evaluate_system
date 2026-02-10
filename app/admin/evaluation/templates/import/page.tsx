@@ -1,9 +1,10 @@
-import { redirect } from "next/navigation";
 import { getMyEmployeeProfile, requireRole } from "@/lib/auth/roles";
 
 export default async function ImportPage() {
   const me = await getMyEmployeeProfile();
-  if (!requireRole(me, ["hr"])) redirect("/dashboard");
+  if (!requireRole(me, ["hr"])) {
+    return <main style={{ padding: 24 }}>このページを表示する権限がありません。</main>;
+  }
 
   return (
     <div style={{ padding: 24 }}>

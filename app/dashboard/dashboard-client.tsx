@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-type Role = "employee" | "manager" | "hr";
+type Role = "employee" | "manager" | "hr" | "admin";
 
 export default function DashboardClient(props: any) {
   const { me, activeCycle } = props as {
@@ -34,7 +34,7 @@ export default function DashboardClient(props: any) {
               <Link href="/evaluation/inbox">受信箱</Link>
             </>
           )}
-          {me.role === "hr" && (
+          {(me.role === "hr" || me.role === "admin") && (
             <>
               <Link href="/admin/evaluation/progress">進捗</Link>
               <Link href="/admin/evaluation/templates">テンプレ</Link>
@@ -48,7 +48,7 @@ export default function DashboardClient(props: any) {
 
       {me.role === "employee" && <EmployeeDash {...props} />}
       {me.role === "manager" && <ManagerDash {...props} />}
-      {me.role === "hr" && <HrDash {...props} />}
+      {(me.role === "hr" || me.role === "admin") && <HrDash {...props} />}
     </div>
   );
 }

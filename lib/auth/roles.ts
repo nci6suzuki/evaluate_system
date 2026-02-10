@@ -1,6 +1,6 @@
 import { createSupabaseServer } from "@/lib/supabase/server";
 
-export type AppRole = "employee" | "manager" | "hr";
+export type AppRole = "employee" | "manager" | "hr" | "admin";
 
 export async function getMyEmployeeProfile() {
   const supabase = await createSupabaseServer();
@@ -25,5 +25,6 @@ export async function getMyEmployeeProfile() {
 
 export function requireRole(me: { role: AppRole } | null, roles: AppRole[]) {
   if (!me) return false;
+  if (me.role === "admin") return true;
   return roles.includes(me.role);
 }
