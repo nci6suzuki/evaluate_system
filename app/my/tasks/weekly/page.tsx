@@ -1,52 +1,50 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getMyEmployeeProfile } from "@/lib/auth/roles";
-import TasksWeeklyClient from "./tasks-weekly-client";
+import { getMyEmployeeProfile, requireRole } from "@/lib/auth/roles";
+import WeeklyTasksClient from "./tasks-weekly-client";
 
-function monday(date: Date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0, 10);
-}
-
-export default async function WeeklyTasksPage({
-  searchParams,
-}: {
-  searchParams: { week_start?: string };
-}) {
+export default async function WeeklyTasksPage() {
   const me = await getMyEmployeeProfile();
   if (!me) redirect("/login");
+  if (!requireRole(me, ["employee"])) redirect("/dashboard");
 
-  const weekStart = searchParams.week_start ?? monday(new Date());
-  const supabase = await createSupabaseServer();
+  const supabase = createSupabaseServer();
 
-  const { data: tasks } = await supabase
-    .from("tasks")
-    .select("id,name,category,base_points")
-    .eq("is_active", true)
-    .order("importance", { ascending: false, nullsFirst: false })
-    .order("name");
+  const { data: tasks } = await supabase.from("tasks").select("id,name").order("name");
 
   const { data: logs } = await supabase
-    .from("task_logs")
-    .select(`
-      id,task_id,quantity,points,note,
-      evidences(id,kind,value)
-    `)
+    .from("weekly_task_logs")
+    .select("id,week_start,quantity,points,note,tasks:task_id(name)")
     .eq("employee_id", me.id)
-    .eq("week_start", weekStart)
-    .order("created_at", { ascending: false });
+    .order("week_start", { ascending: false })
+    .limit(30);
 
   return (
-    <main style={{ padding: 24, maxWidth: 1040, margin: "0 auto" }}>
-      <h1>週次業務実績</h1>
-      <p style={{ color: "#556" }}>
-        週ごとの業務実績（件数・ポイント・メモ）を登録します。証跡URLも紐付け可能です。
-      </p>
+    <main style={{ minHeight: "100vh", background: "#f5f8ff", padding: 24 }}>
+      <section style={{ maxWidth: 980, margin: "0 auto" }}>
+        <header
+          style={{
+            background: "linear-gradient(110deg, #0f766e, #0ea5a2)",
+            color: "#fff",
+            borderRadius: 14,
+            padding: 18,
+          }}
+        >
+          <h1 style={{ margin: 0, fontSize: 26 }}>週次実績</h1>
+          <p style={{ margin: "6px 0 0", opacity: 0.95 }}>
+            {me.name} さんの週次業務実績を入力・確認できます。
+          </p>
+        </header>
 
-      <TasksWeeklyClient meId={me.id} weekStart={weekStart} tasks={tasks ?? []} logs={logs ?? []} />
+        <section style={{ marginTop: 14 }}>
+          <Link href="/dashboard">← ダッシュボードへ戻る</Link>
+        </section>
+
+        <section style={{ marginTop: 14 }}>
+          <WeeklyTasksClient employeeId={me.id} tasks={(tasks as any[]) ?? []} initialLogs={(logs as any[]) ?? []} />
+        </section>
+      </section>
     </main>
   );
 }

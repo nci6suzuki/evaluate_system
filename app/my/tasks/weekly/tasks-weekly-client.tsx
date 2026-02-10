@@ -3,179 +3,154 @@
 import { useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-type Task = { id: string; name: string; category: string | null; base_points: number | null };
-type Log = {
+type TaskOption = { id: string; name: string };
+type WeeklyLog = {
   id: string;
-  task_id: string;
-  quantity: number;
-  points: number;
+  week_start: string;
+  quantity: number | null;
+  points: number | null;
   note: string | null;
-  evidences: { id: string; kind: string; value: string }[] | null;
+  tasks?: { name?: string } | null;
 };
 
-export default function TasksWeeklyClient({
-  meId,
-  weekStart,
+export default function WeeklyTasksClient({
+  employeeId,
   tasks,
-  logs,
+  initialLogs,
 }: {
-  meId: string;
-  weekStart: string;
-  tasks: Task[];
-  logs: Log[];
+  employeeId: string;
+  tasks: TaskOption[];
+  initialLogs: WeeklyLog[];
 }) {
   const supabase = useMemo(() => supabaseBrowser(), []);
-  const [week, setWeek] = useState(weekStart);
-  const [creating, setCreating] = useState(false);
 
+  const [weekStart, setWeekStart] = useState(getCurrentWeekStart());
   const [taskId, setTaskId] = useState(tasks[0]?.id ?? "");
   const [quantity, setQuantity] = useState(1);
-  const [points, setPoints] = useState(0);
   const [note, setNote] = useState("");
-  const [evidenceUrl, setEvidenceUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function moveWeek(dir: -1 | 1) {
-    const base = new Date(`${week}T00:00:00`);
-    base.setDate(base.getDate() + dir * 7);
-    const nextWeek = base.toISOString().slice(0, 10);
-    setWeek(nextWeek);
-    location.href = `/my/tasks/weekly?week_start=${nextWeek}`;
-  }
-
-  async function createLog() {
-    if (!taskId) return;
-    setCreating(true);
-
-    const { data: inserted, error } = await supabase
-      .from("task_logs")
-      .insert({
-        employee_id: meId,
-        task_id: taskId,
-        week_start: week,
-        quantity,
-        points,
-        note: note || null,
-      })
-      .select("id")
-      .single();
-
-    if (error) {
-      alert(error.message);
-      setCreating(false);
+  async function addLog() {
+    setError(null);
+    if (!taskId || !weekStart) {
+      setError("タスクと週開始日を選択してください。");
       return;
     }
 
-    if (evidenceUrl.trim()) {
-      await supabase.from("evidences").insert({
-        owner_employee_id: meId,
-        task_log_id: inserted.id,
-        kind: "url",
-        value: evidenceUrl.trim(),
-      });
+    setSaving(true);
+    const { error: insertErr } = await supabase.from("weekly_task_logs").insert({
+      employee_id: employeeId,
+      week_start: weekStart,
+      task_id: taskId,
+      quantity,
+      note,
+    });
+    setSaving(false);
+
+    if (insertErr) {
+      setError(insertErr.message);
+      return;
     }
 
     location.reload();
   }
-
-  async function updateLog(logId: string, field: "quantity" | "points" | "note", value: string) {
-    const patch: Record<string, string | number | null> = {};
-    if (field === "quantity") patch.quantity = Number(value);
-    if (field === "points") patch.points = Number(value);
-    if (field === "note") patch.note = value || null;
-
-    const { error } = await supabase.from("task_logs").update(patch).eq("id", logId);
-    if (error) alert(error.message);
-  }
-
-  async function deleteLog(logId: string) {
-    if (!confirm("この実績行を削除しますか？")) return;
-    const { error } = await supabase.from("task_logs").delete().eq("id", logId);
-    if (error) {
-      alert(error.message);
-      return;
-    }
-    location.reload();
-  }
-
-  const total = logs.reduce((acc, x) => acc + (Number(x.points) || 0), 0);
 
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-        <button onClick={() => moveWeek(-1)}>← 前週</button>
-        <b>{week}</b>
-        <button onClick={() => moveWeek(1)}>翌週 →</button>
-        <span style={{ marginLeft: "auto" }}>合計ポイント: {total}</span>
-      </div>
+    <>
+      <section
+        style={{
+          background: "#fff",
+          border: "1px solid #dbe4f3",
+          borderRadius: 12,
+          padding: 14,
+        }}
+      >
+        <h2 style={{ marginTop: 0, fontSize: 18 }}>週次実績を入力</h2>
+        <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+          <label>
+            週開始日
+            <input
+              type="date"
+              value={weekStart}
+              onChange={(e) => setWeekStart(e.target.value)}
+              style={{ width: "100%", marginTop: 4 }}
+            />
+          </label>
 
-      <div style={{ border: "1px solid #d8e1ef", borderRadius: 10, padding: 12 }}>
-        <h3 style={{ marginTop: 0 }}>週次実績を追加</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px", gap: 8 }}>
-          <select value={taskId} onChange={(e) => {
-            const t = tasks.find((x) => x.id === e.target.value);
-            setTaskId(e.target.value);
-            setPoints(t?.base_points ?? 0);
-          }}>
-            {tasks.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} {t.category ? `(${t.category})` : ""}
-              </option>
-            ))}
-          </select>
-          <input type="number" min={0} value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} placeholder="件数" />
-          <input type="number" value={points} onChange={(e) => setPoints(Number(e.target.value))} placeholder="ポイント" />
+          <label>
+            タスク
+            <select value={taskId} onChange={(e) => setTaskId(e.target.value)} style={{ width: "100%", marginTop: 4 }}>
+              {tasks.map((task) => (
+                <option key={task.id} value={task.id}>
+                  {task.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            数量
+            <input
+              type="number"
+              min={1}
+              value={quantity}
+              onChange={(e) => setQuantity(Number(e.target.value || 1))}
+              style={{ width: "100%", marginTop: 4 }}
+            />
+          </label>
         </div>
-        <textarea
-          rows={2}
-          style={{ width: "100%", marginTop: 8 }}
-          placeholder="メモ"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
-        <input
-          style={{ width: "100%", marginTop: 8 }}
-          placeholder="証跡URL（任意）"
-          value={evidenceUrl}
-          onChange={(e) => setEvidenceUrl(e.target.value)}
-        />
-        <button onClick={createLog} disabled={creating || !taskId} style={{ marginTop: 10 }}>
-          追加
+
+        <label style={{ display: "block", marginTop: 10 }}>
+          メモ
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} style={{ width: "100%", marginTop: 4 }} />
+        </label>
+
+        {error && <p style={{ color: "#b91c1c", marginBottom: 0 }}>{error}</p>}
+
+        <button onClick={addLog} disabled={saving} style={{ marginTop: 10 }}>
+          {saving ? "保存中..." : "保存"}
         </button>
-      </div>
+      </section>
 
-      <h3 style={{ marginTop: 16 }}>実績一覧</h3>
-      <div style={{ display: "grid", gap: 8 }}>
-        {logs.map((l) => (
-          <article key={l.id} style={{ border: "1px solid #d8e1ef", borderRadius: 10, padding: 10 }}>
-            <div style={{ fontWeight: 700 }}>{tasks.find((t) => t.id === l.task_id)?.name ?? "-"}</div>
-            <div style={{ display: "grid", gridTemplateColumns: "100px 100px 1fr auto", gap: 8, marginTop: 8 }}>
-              <input
-                type="number"
-                defaultValue={l.quantity}
-                onBlur={(e) => updateLog(l.id, "quantity", e.target.value)}
-              />
-              <input
-                type="number"
-                defaultValue={l.points}
-                onBlur={(e) => updateLog(l.id, "points", e.target.value)}
-              />
-              <input defaultValue={l.note ?? ""} onBlur={(e) => updateLog(l.id, "note", e.target.value)} />
-              <button onClick={() => deleteLog(l.id)}>削除</button>
+      <section style={{ marginTop: 14 }}>
+        <h2 style={{ marginBottom: 8, fontSize: 18 }}>最近の入力</h2>
+        <div style={{ display: "grid", gap: 8 }}>
+          {initialLogs.map((log) => (
+            <article
+              key={log.id}
+              style={{
+                background: "#fff",
+                border: "1px solid #dbe4f3",
+                borderRadius: 10,
+                padding: "10px 12px",
+              }}
+            >
+              <div>
+                <b>{log.week_start}</b> / {log.tasks?.name ?? "タスク不明"}
+              </div>
+              <div style={{ marginTop: 3, color: "#475569" }}>
+                qty: {log.quantity ?? 1} / points: {log.points ?? "-"}
+              </div>
+              {log.note && <div style={{ marginTop: 4, color: "#64748b", fontSize: 13 }}>メモ: {log.note}</div>}
+            </article>
+          ))}
+          {!initialLogs.length && (
+            <div style={{ background: "#fff", border: "1px solid #dbe4f3", borderRadius: 10, padding: 12 }}>
+              まだ週次実績が入力されていません。
             </div>
-            {!!l.evidences?.length && (
-              <ul style={{ marginTop: 8 }}>
-                {l.evidences.map((ev) => (
-                  <li key={ev.id}>
-                    {ev.kind}: <a href={ev.value}>{ev.value}</a>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </article>
-        ))}
-
-        {!logs.length && <div>この週の実績はまだありません。</div>}
-      </div>
-    </div>
+          )}
+        </div>
+      </section>
+    </>
   );
+}
+
+function getCurrentWeekStart() {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diff);
+  return monday.toISOString().slice(0, 10);
 }
