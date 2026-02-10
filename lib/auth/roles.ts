@@ -93,8 +93,8 @@ export async function getMyEmployeeProfile() {
 }
 
 export function requireRole(me: { role: AppRole } | null, roles: AppRole[]) {
-  if (isPermissionBypassEnabled()) return true;
   if (!me) return false;
+  if (isPermissionBypassEnabled()) return true;
   const normalizedRole = getEffectiveRole(me.role);
   if (!normalizedRole) return false;
   if (normalizedRole === "admin") return true;
