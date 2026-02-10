@@ -4,7 +4,35 @@ import { useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Me = { id: string; name: string; role: "employee" | "manager" | "hr" };
-type Sheet = any;
+type Sheet = {
+  id: string;
+  status: "draft" | "submitted" | "manager_review" | "final_review" | "returned" | "finalized";
+  employees?: { name?: string } | { name?: string }[];
+  evaluation_cycles?: { name?: string } | { name?: string }[];
+};
+
+type ScoreRow = {
+  id: string;
+  item_id: string;
+  manager_score_point?: number | null;
+  manager_comment?: string | null;
+  final_score_point?: number | null;
+  final_comment?: string | null;
+  self_comment?: string | null;
+  evaluation_items?:
+    | {
+        item_name?: string;
+        weight?: number;
+        sort_order?: number;
+        evaluation_item_levels?: { score_point: number; criterion_value: string }[] | { score_point: number; criterion_value: string }[];
+      }
+    | {
+        item_name?: string;
+        weight?: number;
+        sort_order?: number;
+        evaluation_item_levels?: { score_point: number; criterion_value: string }[] | { score_point: number; criterion_value: string }[];
+      }[];
+};
 
 export default function SheetClient({
   me,
@@ -14,32 +42,40 @@ export default function SheetClient({
 }: {
   me: Me;
   sheet: Sheet;
-  scores: any[];
+  scores: ScoreRow[];
   actions: any[];
 }) {
   const supabase = useMemo(() => supabaseBrowser(), []);
 
   const sorted = useMemo(() => {
     return [...scores].sort(
-      (a, b) => (a.evaluation_items?.sort_order ?? 0) - (b.evaluation_items?.sort_order ?? 0)
+      (a, b) => ((Array.isArray(a.evaluation_items) ? a.evaluation_items[0]?.sort_order : a.evaluation_items?.sort_order) ?? 0) - ((Array.isArray(b.evaluation_items) ? b.evaluation_items[0]?.sort_order : b.evaluation_items?.sort_order) ?? 0)
     );
   }, [scores]);
 
   const [selected, setSelected] = useState(sorted[0]?.id);
+  const [managerScore, setManagerScore] = useState<string>("");
+  const [managerComment, setManagerComment] = useState<string>("");
+  const [finalScore, setFinalScore] = useState<string>("");
+  const [finalComment, setFinalComment] = useState<string>("");
   const row = sorted.find((x) => x.id === selected);
+  const item = Array.isArray(row?.evaluation_items) ? row?.evaluation_items[0] : row?.evaluation_items;
+  const itemLevels = Array.isArray(item?.evaluation_item_levels) ? item?.evaluation_item_levels : [];
 
-  const levels = (row?.evaluation_items?.evaluation_item_levels ?? []).reduce(
-    (acc: any, lv: any) => {
+  const levels = itemLevels.reduce(
+    (acc: Record<number, string>, lv) => {
       acc[lv.score_point] = lv.criterion_value;
       return acc;
     },
     {}
   );
 
+  const selectedManagerPoint = managerScore ? Number(managerScore) : row?.manager_score_point ?? null;
+
   async function updateManager(scorePoint: number, comment: string) {
     await supabase.rpc("rpc_update_manager_score", {
       p_sheet_id: sheet.id,
-      p_item_id: row.item_id,
+      p_item_id: row?.item_id,
       p_score_point: scorePoint,
       p_comment: comment,
     });
@@ -49,7 +85,7 @@ export default function SheetClient({
   async function updateFinal(scorePoint: number, comment: string) {
     await supabase.rpc("rpc_update_final_score", {
       p_sheet_id: sheet.id,
-      p_item_id: row.item_id,
+      p_item_id: row?.item_id,
       p_score_point: scorePoint,
       p_comment: comment,
     });
@@ -59,7 +95,7 @@ export default function SheetClient({
   async function updateSelf(comment: string) {
     await supabase.rpc("rpc_update_self_comment", {
       p_sheet_id: sheet.id,
-      p_item_id: row.item_id,
+      p_item_id: row?.item_id,
       p_self_comment: comment,
     });
     location.reload();
@@ -82,12 +118,16 @@ export default function SheetClient({
     location.reload();
   }
 
+  const canSubmit = me.role === "employee" && (sheet.status === "draft" || sheet.status === "returned");
+  const canManagerApprove = me.role === "manager" && (sheet.status === "submitted" || sheet.status === "manager_review");
+  const canManagerReturn = me.role === "manager" && (sheet.status === "submitted" || sheet.status === "manager_review");
+  const canFinalize = me.role === "hr" && sheet.status === "final_review";
+
   return (
     <div>
       <h1>評価シート</h1>
       <div style={{ marginTop: 8 }}>
-        <b>{sheet.employees?.name}</b> / {sheet.evaluation_cycles?.name} / status:{" "}
-        {sheet.status}
+        <b>{Array.isArray(sheet.employees) ? sheet.employees[0]?.name : sheet.employees?.name}</b> / {Array.isArray(sheet.evaluation_cycles) ? sheet.evaluation_cycles[0]?.name : sheet.evaluation_cycles?.name} / status: {sheet.status}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 16, marginTop: 16 }}>
@@ -95,7 +135,13 @@ export default function SheetClient({
           {sorted.map((s) => (
             <button
               key={s.id}
-              onClick={() => setSelected(s.id)}
+              onClick={() => {
+                setSelected(s.id);
+                setManagerScore("");
+                setManagerComment("");
+                setFinalScore("");
+                setFinalComment("");
+              }}
               style={{
                 display: "block",
                 width: "100%",
@@ -105,26 +151,27 @@ export default function SheetClient({
                 background: s.id === selected ? "#f5f5f5" : "white",
               }}
             >
-              {s.evaluation_items?.item_name}（{s.evaluation_items?.weight}）
+              {(Array.isArray(s.evaluation_items) ? s.evaluation_items[0]?.item_name : s.evaluation_items?.item_name)}（{(Array.isArray(s.evaluation_items) ? s.evaluation_items[0]?.weight : s.evaluation_items?.weight)}）
             </button>
           ))}
         </aside>
 
         <main style={{ border: "1px solid #ddd", padding: 12 }}>
-          <h3>{row?.evaluation_items?.item_name}</h3>
+          <h3>{item?.item_name}</h3>
 
           <div style={{ marginTop: 8, fontSize: 14 }}>
             <div>
               <b>基準（選択点数に対応）</b>
               <div style={{ marginTop: 6, padding: 10, border: "1px dashed #aaa" }}>
-                例：点数を選ぶとここに criterion_value が表示されます
+                {selectedManagerPoint != null
+                  ? levels[selectedManagerPoint] ?? "(基準未設定)"
+                  : "点数を選択すると基準が表示されます"}
               </div>
             </div>
           </div>
 
           <hr style={{ margin: "16px 0" }} />
 
-          {/* 自己コメント（本人のみ想定、ただしRLS+RPCが守る） */}
           <div>
             <b>自己コメント</b>
             <textarea
@@ -132,6 +179,7 @@ export default function SheetClient({
               rows={3}
               style={{ width: "100%", marginTop: 6 }}
               onBlur={(e) => updateSelf(e.target.value)}
+              disabled={sheet.status === "finalized"}
             />
           </div>
 
@@ -142,43 +190,28 @@ export default function SheetClient({
               <b>一次評価（上長）</b>
               <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                 <select
-                  defaultValue={row?.manager_score_point ?? ""}
-                  onChange={(e) => {
-                    const sp = Number(e.target.value);
-                    const text = levels[sp] ?? "(基準未設定)";
-                    const box = document.getElementById("criteria-box");
-                    if (box) box.textContent = text;
-                  }}
+                  value={managerScore || String(row?.manager_score_point ?? "")}
+                  onChange={(e) => setManagerScore(e.target.value)}
                 >
                   <option value="">-</option>
-                  {[0,10,20,30,40,50,60,70,80,90,100].map((n) => (
+                  {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((n) => (
                     <option key={n} value={n}>
                       {n}
                     </option>
                   ))}
                 </select>
                 <input
-                  id="mgr-comment"
-                  defaultValue={row?.manager_comment ?? ""}
+                  value={managerComment || row?.manager_comment || ""}
+                  onChange={(e) => setManagerComment(e.target.value)}
                   placeholder="コメント（必須）"
                   style={{ flex: 1 }}
                 />
                 <button
-                  onClick={() => {
-                    const sp = Number(
-                      (document.querySelector("select") as HTMLSelectElement).value
-                    );
-                    const c = (document.getElementById("mgr-comment") as HTMLInputElement).value;
-                    updateManager(sp, c);
-                  }}
+                  onClick={() => updateManager(Number(managerScore || row?.manager_score_point || 0), managerComment || row?.manager_comment || "")}
+                  disabled={!canManagerApprove}
                 >
                   保存
                 </button>
-              </div>
-              <div id="criteria-box" style={{ marginTop: 8, padding: 10, border: "1px dashed #aaa" }}>
-                {row?.manager_score_point != null
-                  ? levels[row.manager_score_point] ?? "(基準未設定)"
-                  : "点数を選択すると基準が表示されます"}
               </div>
             </div>
           )}
@@ -187,28 +220,23 @@ export default function SheetClient({
             <div style={{ marginTop: 16 }}>
               <b>最終評価（人事）</b>
               <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                <select defaultValue={row?.final_score_point ?? ""} id="final-score">
+                <select value={finalScore || String(row?.final_score_point ?? "")} onChange={(e) => setFinalScore(e.target.value)}>
                   <option value="">-</option>
-                  {[0,10,20,30,40,50,60,70,80,90,100].map((n) => (
+                  {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((n) => (
                     <option key={n} value={n}>
                       {n}
                     </option>
                   ))}
                 </select>
                 <input
-                  id="final-comment"
-                  defaultValue={row?.final_comment ?? ""}
+                  value={finalComment || row?.final_comment || ""}
+                  onChange={(e) => setFinalComment(e.target.value)}
                   placeholder="コメント（必須）"
                   style={{ flex: 1 }}
                 />
                 <button
-                  onClick={() => {
-                    const sp = Number(
-                      (document.getElementById("final-score") as HTMLSelectElement).value
-                    );
-                    const c = (document.getElementById("final-comment") as HTMLInputElement).value;
-                    updateFinal(sp, c);
-                  }}
+                  onClick={() => updateFinal(Number(finalScore || row?.final_score_point || 0), finalComment || row?.final_comment || "")}
+                  disabled={!canFinalize}
                 >
                   保存
                 </button>
@@ -219,12 +247,12 @@ export default function SheetClient({
           <hr style={{ margin: "16px 0" }} />
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={submitSheet}>提出（本人）</button>
-            <button onClick={approveManager}>一次承認（上長）</button>
-            <button onClick={() => returnManager(prompt("差戻し理由（必須）") ?? "")}>
-              差戻し（上長）
-            </button>
-            <button onClick={finalize}>確定（人事）</button>
+            {canSubmit && <button onClick={submitSheet}>提出（本人）</button>}
+            {canManagerApprove && <button onClick={approveManager}>一次承認（上長）</button>}
+            {canManagerReturn && (
+              <button onClick={() => returnManager(prompt("差戻し理由（必須）") ?? "")}>差戻し（上長）</button>
+            )}
+            {canFinalize && <button onClick={finalize}>確定（人事）</button>}
           </div>
 
           <div style={{ marginTop: 16 }}>

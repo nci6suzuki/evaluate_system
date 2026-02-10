@@ -7,7 +7,7 @@ export default async function SheetPage({ params }: { params: { sheetId: string 
   const me = await getMyEmployeeProfile();
   if (!me) redirect("/login");
 
-  const supabase = createSupabaseServer();
+  const supabase = await createSupabaseServer();
 
   // シート（RLSで見えないなら null になる）
   const { data: sheet, error } = await supabase

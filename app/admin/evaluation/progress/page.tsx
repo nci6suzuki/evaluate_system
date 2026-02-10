@@ -6,7 +6,7 @@ export default async function AdminProgressPage() {
   const me = await getMyEmployeeProfile();
   if (!requireRole(me, ["hr"])) redirect("/dashboard");
 
-  const supabase = createSupabaseServer();
+  const supabase = await createSupabaseServer();
 
   // 期一覧
   const { data: cycles } = await supabase
@@ -87,6 +87,9 @@ export default async function AdminProgressPage() {
 
         <section style={{ marginTop: 18 }}>
           <h3 style={{ marginBottom: 8 }}>一覧（先頭の期）</h3>
+          <a href="/api/reports/weekly-points" style={{ display: "inline-block", marginBottom: 10 }}>
+            週次ポイントCSVをダウンロード
+          </a>
           <div style={{ border: "1px solid #d8e1ef", borderRadius: 12, overflow: "hidden" }}>
             {(sheets ?? []).slice(0, 30).map((s: any) => (
               <div

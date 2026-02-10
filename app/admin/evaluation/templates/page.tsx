@@ -7,7 +7,7 @@ export default async function TemplatesPage() {
   const me = await getMyEmployeeProfile();
   if (!requireRole(me, ["hr"])) redirect("/dashboard");
 
-  const supabase = createSupabaseServer();
+  const supabase = await createSupabaseServer();
 
   const { data: orgs } = await supabase.from("org_units").select("id,name").order("name");
   const { data: positions } = await supabase.from("positions").select("id,name").order("name");

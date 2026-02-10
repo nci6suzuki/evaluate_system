@@ -101,6 +101,8 @@ export default function DashboardEntry() {
         <section style={{ ...cardStyle, marginTop: 16 }}>
           <h2 style={{ marginTop: 0, marginBottom: 12, fontSize: 18 }}>クイックアクション</h2>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            <QuickLink href="/my/evaluation" label="自分の評価" />
+            <QuickLink href="/my/tasks/weekly" label="週次実績入力" />
             <QuickLink href="/evaluation/inbox" label="承認待ち一覧" />
             <QuickLink href="/admin/evaluation/progress" label="評価進捗" />
             <QuickLink href="/admin/evaluation/templates" label="テンプレート管理" />

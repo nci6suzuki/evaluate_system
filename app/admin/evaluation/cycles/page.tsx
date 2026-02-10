@@ -7,7 +7,7 @@ export default async function CyclesPage() {
   const me = await getMyEmployeeProfile();
   if (!requireRole(me, ["hr"])) redirect("/dashboard");
 
-  const supabase = createSupabaseServer();
+  const supabase = await createSupabaseServer();
 
   const { data: cycles } = await supabase
     .from("evaluation_cycles")

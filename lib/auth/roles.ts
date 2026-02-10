@@ -3,7 +3,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 export type AppRole = "employee" | "manager" | "hr";
 
 export async function getMyEmployeeProfile() {
-  const supabase = createSupabaseServer();
+  const supabase = await createSupabaseServer();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return null;
 

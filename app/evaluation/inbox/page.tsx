@@ -6,7 +6,7 @@ export default async function InboxPage() {
   const me = await getMyEmployeeProfile();
   if (!requireRole(me, ["manager", "hr"])) redirect("/dashboard");
 
-  const supabase = createSupabaseServer();
+  const supabase = await createSupabaseServer();
 
   // RLSにより「配下のシートのみ」返る前提（hrは全件）
   const { data: sheets } = await supabase
