@@ -10,15 +10,18 @@ export default async function WeeklyTasksPage() {
   }
 
   const supabase = await createSupabaseServer();
+  const employeeId = me?.id ?? "";
 
   const { data: tasks } = await supabase.from("tasks").select("id,name").order("name");
 
-  const { data: logs } = await supabase
-    .from("weekly_task_logs")
-    .select("id,week_start,quantity,points,note,tasks:task_id(name)")
-    .eq("employee_id", me.id)
-    .order("week_start", { ascending: false })
-    .limit(30);
+  const { data: logs } = employeeId
+    ? await supabase
+        .from("weekly_task_logs")
+        .select("id,week_start,quantity,points,note,tasks:task_id(name)")
+        .eq("employee_id", employeeId)
+        .order("week_start", { ascending: false })
+        .limit(30)
+    : { data: [] };
 
   return (
     <main style={{ minHeight: "100vh", background: "#f5f8ff", padding: 24 }}>
@@ -33,7 +36,7 @@ export default async function WeeklyTasksPage() {
         >
           <h1 style={{ margin: 0, fontSize: 26 }}>週次実績</h1>
           <p style={{ margin: "6px 0 0", opacity: 0.95 }}>
-            {me.name} さんの週次業務実績を入力・確認できます。
+            {(me?.name ?? "ゲスト")} さんの週次業務実績を入力・確認できます。
           </p>
         </header>
 
@@ -42,7 +45,7 @@ export default async function WeeklyTasksPage() {
         </section>
 
         <section style={{ marginTop: 14 }}>
-          <WeeklyTasksClient employeeId={me.id} tasks={(tasks as any[]) ?? []} initialLogs={(logs as any[]) ?? []} />
+          <WeeklyTasksClient employeeId={employeeId} tasks={(tasks as any[]) ?? []} initialLogs={(logs as any[]) ?? []} />
         </section>
       </section>
     </main>

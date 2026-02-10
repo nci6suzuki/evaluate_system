@@ -42,19 +42,21 @@ export function normalizeRole(role: unknown): AppRole | null {
 export async function getMyEmployeeProfile() {
   const supabase = await createSupabaseServer();
   const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return null;
 
   if (isPermissionBypassEnabled()) {
     const bypassRole = getBypassRole();
+    const fallbackUserId = auth.user?.id ?? process.env.AUTH_BYPASS_USER_ID ?? "permission-bypass-user";
+    const fallbackName = auth.user?.email ?? "Permission Bypass User";
+
     const { data } = await supabase
       .from("employees")
       .select("id,name,org_unit_id,position_id")
-      .eq("user_id", auth.user.id)
+      .eq("user_id", fallbackUserId)
       .maybeSingle();
 
     return {
-      id: data?.id ?? auth.user.id,
-      name: data?.name ?? auth.user.email ?? "Permission Bypass User",
+      id: data?.id ?? fallbackUserId,
+      name: data?.name ?? fallbackName,
       role: bypassRole,
       org_unit_id: data?.org_unit_id ?? null,
       position_id: data?.position_id ?? null,
@@ -66,6 +68,8 @@ export async function getMyEmployeeProfile() {
       position_id: string | null;
     };
   }
+
+  if (!auth.user) return null;
 
   const { data, error } = await supabase
     .from("employees")
