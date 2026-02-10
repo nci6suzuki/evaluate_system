@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fetchDashboardPayload } from "./actions";
 
-type Role = "employee" | "manager" | "hr";
+type Role = "employee" | "manager" | "hr" | "admin";
 
 const shellStyle: CSSProperties = {
   minHeight: "100vh",
@@ -140,9 +140,9 @@ export default function DashboardEntry() {
           <section style={{ ...cardStyle, marginTop: 16 }}>
             <h2 style={{ marginTop: 0, marginBottom: 12, fontSize: 18 }}>クイックアクション</h2>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              {quickActions.map((item) => (
-                <QuickLink key={item.href} href={item.href} label={item.label} />
-              ))}
+            {quickLinks.map((link) => (
+              <QuickLink key={link.href} href={link.href} label={link.label} />
+            ))}
             </div>
           </section>
 
