@@ -11,6 +11,28 @@ const ROLE_ALIASES: Record<string, AppRole> = {
   administrator: "admin",
 };
 
+function isPermissionBypassEnabled() {
+  const raw = process.env.AUTH_BYPASS?.trim().toLowerCase();
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+
+  // 開発中はデフォルトで権限バイパスON（本番はOFF）
+  return process.env.NODE_ENV !== "production";
+}
+
+function getBypassRole(): AppRole {
+  const normalized = normalizeRole(process.env.AUTH_BYPASS_ROLE);
+  return normalized ?? "admin";
+}
+
+export function getEffectiveRole(role: unknown): AppRole | null {
+  if (isPermissionBypassEnabled()) {
+    return getBypassRole();
+  }
+
+  return normalizeRole(role);
+}
+
 export function normalizeRole(role: unknown): AppRole | null {
   if (typeof role !== "string") return null;
   const normalized = role.trim().toLowerCase();
@@ -22,6 +44,29 @@ export async function getMyEmployeeProfile() {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return null;
 
+  if (isPermissionBypassEnabled()) {
+    const bypassRole = getBypassRole();
+    const { data } = await supabase
+      .from("employees")
+      .select("id,name,org_unit_id,position_id")
+      .eq("user_id", auth.user.id)
+      .maybeSingle();
+
+    return {
+      id: data?.id ?? auth.user.id,
+      name: data?.name ?? auth.user.email ?? "Permission Bypass User",
+      role: bypassRole,
+      org_unit_id: data?.org_unit_id ?? null,
+      position_id: data?.position_id ?? null,
+    } as {
+      id: string;
+      name: string;
+      role: AppRole;
+      org_unit_id: string | null;
+      position_id: string | null;
+    };
+  }
+
   const { data, error } = await supabase
     .from("employees")
     .select("id,name,role,org_unit_id,position_id")
@@ -29,7 +74,7 @@ export async function getMyEmployeeProfile() {
     .single();
 
   if (error) return null;
-  const normalizedRole = normalizeRole((data as any)?.role);
+  const normalizedRole = getEffectiveRole((data as any)?.role);
   if (!normalizedRole) return null;
 
   return {
@@ -48,8 +93,9 @@ export async function getMyEmployeeProfile() {
 }
 
 export function requireRole(me: { role: AppRole } | null, roles: AppRole[]) {
+  if (isPermissionBypassEnabled()) return true;
   if (!me) return false;
-  const normalizedRole = normalizeRole(me.role);
+  const normalizedRole = getEffectiveRole(me.role);
   if (!normalizedRole) return false;
   if (normalizedRole === "admin") return true;
   return roles.includes(normalizedRole);

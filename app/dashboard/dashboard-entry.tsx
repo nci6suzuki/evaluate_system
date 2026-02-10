@@ -217,6 +217,16 @@ function getNavItemsByRole(role?: Role) {
         { href: "/admin/evaluation/templates", label: "テンプレート管理" },
         { href: "/admin/evaluation/cycles", label: "評価期設定" },
       ];
+    case "admin":
+      return [
+        { href: "/dashboard", label: "ダッシュボード" },
+        { href: "/my/evaluation", label: "自分の評価" },
+        { href: "/my/tasks/weekly", label: "週次実績" },
+        { href: "/evaluation/inbox", label: "受信箱" },
+        { href: "/admin/evaluation/progress", label: "評価進捗" },
+        { href: "/admin/evaluation/templates", label: "テンプレート管理" },
+        { href: "/admin/evaluation/cycles", label: "評価期設定" },
+      ];
     default:
       return [{ href: "/dashboard", label: "ダッシュボード" }];
   }
@@ -238,6 +248,15 @@ function getQuickActionsByRole(role?: Role) {
         { href: "/admin/evaluation/templates", label: "テンプレート管理" },
         { href: "/admin/evaluation/cycles", label: "評価期設定" },
       ];
+    case "admin":
+      return [
+        { href: "/my/evaluation", label: "自分の評価へ" },
+        { href: "/my/tasks/weekly", label: "週次実績を入力" },
+        { href: "/evaluation/inbox", label: "承認待ち一覧" },
+        { href: "/admin/evaluation/progress", label: "評価進捗" },
+        { href: "/admin/evaluation/templates", label: "テンプレート管理" },
+        { href: "/admin/evaluation/cycles", label: "評価期設定" },
+      ];
     default:
       return [{ href: "/dashboard", label: "ダッシュボード" }];
   }
@@ -253,7 +272,7 @@ function getQuickLinksByRole(role: Role | undefined) {
     return [...commonLinks, { href: "/evaluation/inbox", label: "承認待ち一覧" }];
   }
 
-  if (role === "hr") {
+  if (role === "hr" || role === "admin") {
     return [
       ...commonLinks,
       { href: "/evaluation/inbox", label: "承認待ち一覧" },
